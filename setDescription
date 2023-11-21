@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract EnhancedStorageETH {
+    address public owner;
+    string public storedData;
+    string public contractDescription;
+    uint256 public lastModificationTimestamp;
+    bool public isLocked;
+
+    struct Modification {
+        string data;
+        uint256 timestamp;
+    }
+
+    Modification[] public modificationHistory;
+
+    event DataStored(address indexed user, string data);
+    event DataDeleted(address indexed deleter);
+    event ContractLocked(address indexed locker);
+    event ContractUnlocked(address indexed unlocker);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can call this function");
+        _;
+    }
+
+    modifier notLocked() {
+        require(!isLocked, "Contract is locked and data cannot be modified");
+        _;
+    }
+
+    modifier timeLimit(uint256 duration) {
+        require(block.timestamp >= lastModificationTimestamp + duration, "Modification time limit not reached");
+        _;
+    }
+
+    constructor(string memory description) {
+        owner = msg.sender;
+        lastModificationTimestamp = block.timestamp;
+        isLocked = false;
+        contractDescription = description;
+    }
+
+    function setDescription(string memory newDescription) external onlyOwner {
+        contractDescription = newDescription;
+    }
+
+    function set(string memory newData) external onlyOwner notLocked timeLimit(1 days) {
+        storedData = newData;
+        lastModificationTimestamp = block.timestamp;
+
+        Modification memory modification = Modification({
+            data: newData,
+            timestamp: block.timestamp
+        });
+
+        modificationHistory.push(modification);
+
+        emit DataStored(msg.sender, newData);
+    }
+
+    function get() external view returns (string memory) {
+        return storedData;
+    }
+
+    function deleteData() external onlyOwner notLocked timeLimit(1 days) {
+        delete storedData;
+        lastModificationTimestamp = block.timestamp;
+        emit DataDeleted(msg.sender);
+    }
+
+    function lockContract() external onlyOwner {
+        isLocked = true;
+        emit ContractLocked(msg.sender);
+    }
+
+    function unlockContract() external onlyOwner {
+        isLocked = false;
+        emit ContractUnlocked(msg.sender);
+    }
+
+    function getModificationHistoryLength() external view returns (uint256) {
+        return modificationHistory.length;
+    }
+
+    function getModification(uint256 index) external view returns (string memory data, uint256 timestamp) {
+        require(index < modificationHistory.length, "Index out of bounds");
+        Modification memory modification = modificationHistory[index];
+        return (modification.data, modification.timestamp);
+    }
+}
