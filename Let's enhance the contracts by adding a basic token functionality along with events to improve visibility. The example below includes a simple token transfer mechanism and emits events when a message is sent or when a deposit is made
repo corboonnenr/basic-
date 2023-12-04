@@ -1,0 +1,53 @@
+# ContractA.starknet
+
+# Token contract
+token_balance: decimal
+
+@public
+@payable
+def deposit():
+    # Handle deposit logic
+    token_balance += msg.value
+    # Emit event
+    deposit_event(msg.sender, msg.value)
+
+@public
+def sendToB(message: int, amount: decimal):
+    # Check if the sender has enough tokens
+    require(token_balance >= amount, "Insufficient tokens")
+    
+    # Call ContractB's receiveMessage method to send a message
+    invoke_contract("0xContractBAddress", "receiveMessage(uint256)", message)
+    
+    # Transfer tokens to ContractB
+    token_balance -= amount
+    invoke_contract("0xContractBAddress", "receiveTokens(uint256)", amount)
+    
+    # Emit event
+    message_sent_event(msg.sender, "0xContractBAddress", message, amount)
+
+# ContractB.starknet
+
+# Token contract
+token_balance: decimal
+
+@public
+@payable
+def deposit():
+    # Handle deposit logic
+    token_balance += msg.value
+    # Emit event
+    deposit_event(msg.sender, msg.value)
+
+@public
+def receiveMessage(message: int):
+    # Handle receiving message logic
+    # Emit event
+    message_received_event(msg.sender, message)
+
+@public
+def receiveTokens(amount: decimal):
+    # Handle receiving tokens logic
+    token_balance += amount
+    # Emit event
+    tokens_received_event(msg.sender, amount)
